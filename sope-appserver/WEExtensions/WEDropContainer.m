@@ -288,7 +288,7 @@
     if (doDnD) {
       /* gen unique container id */
       
-      if ((containerID = [_ctx valueForKey:@"WEDropContainerSequence"])) {
+      if ((containerID = [_ctx objectForKey:@"WEDropContainerSequence"])) {
         containerID = AUTORELEASE([containerID copy]);
         containerIDc = [containerID intValue];
       }
@@ -458,7 +458,7 @@ static NSString *dropScript =
   
   doDnD = [[[_ctx request] clientCapabilities] doesSupportDHTMLDragAndDrop];
   
-  if (![[_ctx valueForKey:@"WEDropContainerScriptDone"] boolValue] && doDnD) {
+  if (![[_ctx objectForKey:@"WEDropContainerScriptDone"] boolValue] && doDnD) {
     [_response appendContentString:dropScript];
     
     [_ctx takeValue:[NSNumber numberWithBool:YES]

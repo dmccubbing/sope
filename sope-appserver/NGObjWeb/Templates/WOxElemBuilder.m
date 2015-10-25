@@ -27,6 +27,7 @@
 #include <NGObjWeb/WOAssociation.h>
 #include <NGObjWeb/WOComponentScript.h>
 #include <NGObjWeb/WODynamicElement.h>
+#include <NGExtensions/NSObject+Logs.h>
 #include "WOComponentFault.h"
 #include "common.h"
 
@@ -190,14 +191,14 @@ static WOAssociation *yesAssoc = nil;
       }
     }
     else {
-      NSLog(@"%s: couldn't allocate builder (class=%@)", cn);
+      NSLog(@"couldn't allocate builder (class=%@)", cn);
       continue;
     }
   }
   
   if (missingBuilders) {
-    NSLog(@"WOxElemBuilder: could not locate builders: %@", 
-          [missingBuilders componentsJoinedByString:@","]);
+    [self warnWithFormat: @"could not locate builders: %@", 
+          [missingBuilders componentsJoinedByString:@","]];
   }
   return first;
 }

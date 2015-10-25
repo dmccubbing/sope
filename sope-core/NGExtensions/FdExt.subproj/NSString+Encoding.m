@@ -132,7 +132,7 @@
     break;
   }
   
-  NSLog(@"%s: could not derive NSStringEncoding from name: '%@'", _encoding);
+  //NSLog(@"%s: could not derive NSStringEncoding from name: '%@'", _encoding);
   return 0;
 }
 
@@ -141,9 +141,9 @@
 
 #ifdef __linux__
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-static NSString *unicharEncoding = @"UCS-2LE";
+static NSString *unicharEncoding = @"UTF-16LE";
 #else
-static NSString *unicharEncoding = @"UCS-2BE";
+static NSString *unicharEncoding = @"UTF-16BE";
 #endif /* __BYTE_ORDER */
 #else
 static NSString *unicharEncoding = @"UCS-2-INTERNAL";
@@ -157,7 +157,7 @@ static void checkDefaults(void) {
     ud = [NSUserDefaults standardUserDefaults];
     IconvLogEnabled = [ud boolForKey:@"IconvLogEnabled"]?1:0;
 
-    NSLog(@"Note: using '%@' on Linux.", unicharEncoding);
+    //NSLog(@"Note: using '%@' on Linux.", unicharEncoding);
   }
 }
 
@@ -209,7 +209,7 @@ static char *iconv_wrapper(id self, char *_src, unsigned _srcLen,
   tm           = outbuf;
   outbytesleft = outlen;
 
-  write = iconv(type, &inbuf, &inbytesleft, &tm, &outbytesleft);
+  write = iconv(type, (void*)&inbuf, &inbytesleft, &tm, &outbytesleft);
 
   if (write == (size_t)-1) {
     if (errno == EILSEQ) {

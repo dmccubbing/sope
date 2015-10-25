@@ -35,8 +35,8 @@ static BOOL       debugOn = NO;
   NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
   
   debugOn = [ud boolForKey:@"NGMimeGeneratorDebugEnabled"];
-  if (debugOn)
-    NSLog(@"WARNING[%@]: NGMimeGeneratorDebugEnabled is enabled!", self);
+  //if (debugOn)
+  //   NSLog(@"WARNING[%@]: NGMimeGeneratorDebugEnabled is enabled!", self);
   
   if (Pi == nil)
     Pi = [[NSProcessInfo processInfo] retain];
@@ -92,7 +92,7 @@ static BOOL       debugOn = NO;
     self->result = nil;
   }
   self->result = (self->useMimeData)
-    ? [[NGMimeJoinedData alloc] init]
+    ? (NSMutableData*)[[NGMimeJoinedData alloc] init]
     : [[NSMutableData alloc] initWithCapacity:4096];
   
   if ([self->result respondsToSelector:@selector(methodForSelector:)]) {
@@ -148,7 +148,7 @@ static BOOL       debugOn = NO;
   /* returns whether data was generated */
   const unsigned char *fcname;
   id       value  = nil;
-  unsigned len;
+  unsigned len, line_len;
   BOOL     isMultiValue, isFirst;
   
   /* get field name and strip leading spaces */
@@ -160,7 +160,9 @@ static BOOL       debugOn = NO;
   }
   
   isMultiValue = [self isMultiValueCommaHeaderField:_field];
-  isFirst      = YES;
+  isFirst = YES;
+  line_len = 0;
+
   while ((value = [_values nextObject]) != nil) {
     NSData *data;
     
@@ -172,11 +174,22 @@ static BOOL       debugOn = NO;
 	[_data appendBytes:fcname length:len];
 	[_data appendBytes:": " length:2];
 	isFirst = NO;
+        line_len = len+2;
       }
-      else
-	[_data appendBytes:", " length:2];
+      else {
+        // Line MUST be no more than 998 characters. This is RFC-enforced.
+        if (line_len + [data length] + 2 <= 998) {
+          [_data appendBytes:", " length:2];
+          line_len += 2;
+        }
+        else {
+          [_data appendBytes:",\r\n " length:4];
+          line_len = 1;
+        }
+      }
       
       [_data appendData:data];
+      line_len += [data length];
     }
     else {
       [_data appendBytes:fcname length:len];
@@ -366,11 +379,18 @@ static BOOL       debugOn = NO;
     //       data which in turn resulted in a superflous "\r\n" string
     if ([headerData length] > 0) {
       [self->result appendData:headerData];
+
+      // We pad so our output buffer's with an extra \n\r to avoid Outlook data corruption.
+      // See: http://answers.microsoft.com/en-us/office/forum/office_2010-outlook/outlook-2010-decodes-pdf-attachment-as-all-zero/51012fe5-9d5e-431d-9d9c-a37b0171264a?page=2
+      // for more details.
       [self->result appendBytes:"\r\n" length:2];
     }
     
     if (bodyData != nil)
-      [self->result appendData:bodyData];
+      {
+        [self->result appendData:bodyData];
+        [self->result appendBytes:"\r\n" length:2];
+      }
     else if (debugOn)
       [self debugWithFormat:@"  => did not generate any body data!"];
   }
@@ -414,8 +434,7 @@ static BOOL       debugOn = NO;
 
   if (![[self generateMimeFromPart:_part]
               writeToFile:filename atomically:YES]) {
-    NSLog(@"ERROR[%s] couldn`t write data to temorary file %@",
-          __PRETTY_FUNCTION__, filename);
+    [self errorWithFormat: @"couldn`t write data to temorary file %@", filename];
     return nil;
   }
   return filename;

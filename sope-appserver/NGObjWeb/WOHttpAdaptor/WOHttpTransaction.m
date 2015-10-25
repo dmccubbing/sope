@@ -123,7 +123,7 @@ static NSDictionary *standardCapitalizedHeaders = nil;
   adLogPath = [[ud stringForKey:@"WOAdaptorLogPath"] copy];
   if (adLogPath == nil) adLogPath = @"";
 
-  standardCapitalizedHeaders = [NSDictionary dictionaryWithObjectsAndKeys: @"MS-Server-ActiveSync", @"ms-server-activesync", @"MS-ASProtocolVersions", @"ms-asprotocolversions", @"MS-ASProtocolCommands", @"ms-asprotocolcommands", nil];
+  standardCapitalizedHeaders = [NSDictionary dictionaryWithObjectsAndKeys: @"ETag", @"etag", @"MS-Server-ActiveSync", @"ms-server-activesync", @"MS-ASProtocolVersions", @"ms-asprotocolversions", @"MS-ASProtocolCommands", @"ms-asprotocolcommands", nil];
   [standardCapitalizedHeaders retain];
 }
 
@@ -794,7 +794,8 @@ static int logCounter = 0;
     /* add content length header */
     
     if ((length = [body length]) == 0
-        && ![[_response headerForKey: @"content-type"] hasPrefix:@"text/plain"]) {
+        && ![[_response headerForKey: @"content-type"] hasPrefix:@"text/plain"]
+        && ![[_response headerForKey: @"content-type"] hasPrefix:@"application/vnd.ms-sync.wbxml"]) {
       [_response setHeader:@"text/plain" forKey:@"content-type"];
     }
     snprintf((char *)buf, sizeof(buf), "%d", length);
@@ -1011,13 +1012,7 @@ static __inline__ const char *monthAbbr(int m) {
 
   /* append standard info */
   [buf appendString:remoteHost];
-  [buf appendString:@" - - ["];
-  [buf appendFormat:@"%02i/%s/%04i:%02i:%02i:%02i",
-        [now dayOfMonth],
-        monthAbbr([now monthOfYear]),
-        [now yearOfCommonEra],
-        [now hourOfDay], [now minuteOfHour], [now secondOfMinute]];
-  [buf appendString:@" GMT] \""];
+  [buf appendString: @" \""];
   [buf appendString:[_request method]];
   [buf appendString:@" "];
   [buf appendString:[_request uri]];
@@ -1026,9 +1021,9 @@ static __inline__ const char *monthAbbr(int m) {
   [buf appendString:@"\" "];
   [buf appendFormat:@"%i %i",  
          [_response status],
-         [[_response content] length]];
+         (int)[[_response content] length]];
   if (doExtLog)
-    [buf appendFormat:@"/%i", [[_request content] length]];
+    [buf appendFormat:@"/%i", (int)[[_request content] length]];
   
   /* append duration */
   if (lstartDate != nil)

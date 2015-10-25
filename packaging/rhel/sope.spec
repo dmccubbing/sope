@@ -1,20 +1,26 @@
 %define apache_modules_dir %{_usr}/lib/httpd/modules
 %define apache_conf_dir    %{_sysconfdir}/httpd/conf.d
+%define oracle_support     1
+%{?el7:%define oracle_support 0}
 
-Summary:      SOPE.
+Summary:      SOPE
 Name:         sope%{sope_major_version}%{sope_minor_version}
 Version:      %{sope_version}
 Release:      %{sope_release}.%{dist_suffix}.%{sope_buildcount}
 Vendor:       http://www.opengroupware.org
-Packager:     Wolfgang Sourdeau <wsourdeau@inverse.ca>
+Packager:     Inverse inc. <info@inverse.ca>
 License:      GPL
-URL:          http://www.opengroupware.org
+URL:          https://github.com/inverse-inc/sope
 Group:        Development/Libraries/Objective C
 AutoReqProv:  off
 Source:       %{sope_source}
 Prefix:       /usr
 BuildRoot:    %{_tmppath}/%{name}-%{version}-%{release}-root
-BuildPreReq:  gnustep-make gcc-objc postgresql-devel mysql-devel
+BuildPreReq:  gnustep-make gcc-objc postgresql-devel
+
+%{?el5:BuildRequires: mysql-devel}
+%{?el6:BuildRequires: mysql-devel}
+%{?el7:BuildRequires: mariadb-devel}
 
 %description
 sope
@@ -217,6 +223,7 @@ GNUstep database libraries.
 SOPE is a framework for developing web applications and services. The
 name "SOPE" (SKYRiX Object Publishing Environment) is inspired by ZOPE.
 
+%if %oracle_support
 %package gdl1-oracle
 Summary:      Oracle connector for SOPE's fork of the GNUstep database environment
 Group:        Development/Libraries/Objective C
@@ -227,6 +234,7 @@ AutoReqProv:  off
 %description gdl1-oracle
 This package contains the Oracle connector for SOPE's fork of the
 GNUstep database libraries.
+%endif
 
 %package gdl1-mysql
 Summary:      MySQL connector for SOPE's fork of the GNUstep database environment
@@ -312,9 +320,11 @@ fi
 make CC="$CC" %{sope_makeflags}
 cd sope-gdl1/MySQL
 make CC="$CC" LDFLAGS="-L/usr/%{_lib}/mysql" %{sope_makeflags}
+%if %oracle_support
 cd ../Oracle8
 make CC="$CC" LDFLAGS="-L$ORACLELIB_PATH" %{sope_makeflags}
-export PATH=$PATH:/usr/sbin
+%endif
+#export PATH=$PATH:/usr/sbin
 #cd ../../sope-appserver/mod_ngobjweb/
 #if [ -x /usr/bin/apr-1-config ]
 #then
@@ -335,10 +345,12 @@ cd sope-gdl1/MySQL
 make %{sope_makeflags} DESTDIR=${RPM_BUILD_ROOT} \
                         GNUSTEP_INSTALLATION_DOMAIN=SYSTEM \
                        install
+%if %oracle_support
 cd ../Oracle8
 make %{sope_makeflags} DESTDIR=${RPM_BUILD_ROOT} \
                         GNUSTEP_INSTALLATION_DOMAIN=SYSTEM \
                        install
+%endif
 
 rm -f ${RPM_BUILD_ROOT}%{_bindir}/otest
 rm -fr ${RPM_BUILD_ROOT}%{_libdir}/GNUstep/GDLAdaptors-%{sope_version}/SQLite3.gdladaptor
@@ -435,7 +447,11 @@ rm -fr ${RPM_BUILD_ROOT}
 %{_libdir}/libNGObjWeb*.so
 %{_libdir}/libWEExtensions*.so
 %{_libdir}/libWOExtensions*.so
+%if 0%{?el7}
+%{_libdir}/GNUstep/Makefiles
+%else
 %{_datadir}/GNUstep/Makefiles
+%endif
 
 %files ldap
 %defattr(-,root,root,-)
@@ -456,9 +472,11 @@ rm -fr ${RPM_BUILD_ROOT}
 %defattr(-,root,root,-)
 %{_libdir}/GNUstep/GDLAdaptors-%{sope_version}/PostgreSQL.gdladaptor
 
+%if %oracle_support
 %files gdl1-oracle
 %defattr(-,root,root,-)
 %{_libdir}/GNUstep/GDLAdaptors-%{sope_version}/Oracle8.gdladaptor
+%endif
 
 %files gdl1-mysql
 %defattr(-,root,root,-)
@@ -517,5 +535,5 @@ rm -fr ${RPM_BUILD_ROOT}
   the current version we build for
 * Sat Nov 06 2004 Helge Hess <helge.hess@opengroupware.org>
 - updated to 4.5 version
-* Wed Sep 09 2004 Frank Reppin <frank@opengroupware.org>
+* Thu Sep 09 2004 Frank Reppin <frank@opengroupware.org>
 - initial build

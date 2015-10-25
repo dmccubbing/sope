@@ -90,6 +90,12 @@ static Class WOGenericElementClass   = Nil;
   switch (tl) {
     case 0:
 
+    case 3:
+      if (c1 == 'u' && [type isEqualToString:@"url"]) {
+        return NSClassFromString(@"WOTextField");
+      }
+      break;
+
     case 4:
       if (c1 == 't') {
         if ([type isEqualToString:@"text"])
@@ -98,6 +104,10 @@ static Class WOGenericElementClass   = Nil;
       else if (c1 == 'f') {
         if ([type isEqualToString:@"file"])
           return NSClassFromString(@"WOFileUpload");
+      }
+      else if (c1 == 'd') {
+        if ([type isEqualToString:@"date"])
+          return NSClassFromString(@"WOTextField");
       }
       break;
       
@@ -110,15 +120,24 @@ static Class WOGenericElementClass   = Nil;
         if ([type isEqualToString:@"reset"])
           return NSClassFromString(@"WOResetButton");
       }
+      else if (c1 == 'e' && [type isEqualToString:@"email"]) {
+        return NSClassFromString(@"WOTextField");
+      }
       break;
       
     case 6:
-      if (c1 == 's' && [type isEqualToString:@"submit"])
-        return NSClassFromString(@"WOSubmitButton");
+      if (c1 == 's') {
+        if ([type isEqualToString:@"submit"])
+          return NSClassFromString(@"WOSubmitButton");
+        else if ([type isEqualToString:@"search"])
+          return NSClassFromString(@"WOTextField");
+      }
       else if (c1 == 'h' && [type isEqualToString:@"hidden"])
         return NSClassFromString(@"WOHiddenField");
       else if (c1 == 'b' && [type isEqualToString:@"button"])
         return NSClassFromString(@"WOGenericElement");
+      else if (c1 == 'n' && [type isEqualToString:@"number"])
+        return NSClassFromString(@"WOTextField");
       break;
 
     case 8:

@@ -60,13 +60,13 @@ static int descriptiveIDs = -1;
     embedInPool = [[[NSUserDefaults standardUserDefaults]
                                     objectForKey:@"WOCompoundElementPool"]
                                     boolValue] ? 1 : 0;
-    NSLog(@"WOCompoundElement: pool embedding is on.");
+    //NSLog(@"WOCompoundElement: pool embedding is on.");
   }
   if (logId == -1) {
     logId = [[[NSUserDefaults standardUserDefaults]
                               objectForKey:@"WOCompoundElementLogID"]
                               boolValue] ? 1 : 0;
-    NSLog(@"WOCompoundElement: id logging is on.");
+    //NSLog(@"WOCompoundElement: id logging is on.");
   }
 #endif
 }
@@ -80,7 +80,7 @@ static int descriptiveIDs = -1;
   int i;
   
   if (_children == nil) {
-    NSLog(@"%@: invalid argument ..", self);
+    //NSLog(@"%@: invalid argument ..", self);
     self = [self autorelease];
     return nil;
   }
@@ -94,6 +94,7 @@ static int descriptiveIDs = -1;
             _children);
   
   self->count = [_children count];
+  self->children = malloc(sizeof(id) * self->count);
   for (i = (self->count - 1); i >= 0; i--) {
     register WOElement *child;
     
@@ -117,6 +118,7 @@ static int descriptiveIDs = -1;
     [self->children[i] release];
     self->children[i] = nil;
   }
+  free(self->children);
   [super dealloc];
 }
 
@@ -268,10 +270,12 @@ static int descriptiveIDs = -1;
 				 diff);
         }
       }
+#if 0
       if (logId) {
         NSLog(@"WOCompoundElement: pool will release ... (lastId=%@)",
               [_ctx elementID]);
       }
+#endif
       [pool release];
 #endif
 

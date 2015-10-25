@@ -118,7 +118,7 @@ static int          ProfileImapEnabled = -1;
 static int          LogImapEnabled     = -1;
 static int          PreventExceptions  = -1;
 static BOOL         fetchDebug         = NO;
-static BOOL         ImapDebugEnabled   = NO;
+static BOOL         ImapDebugEnabled   = YES;
 static NSArray      *Imap4SystemFlags  = nil;
 
 static NSMutableDictionary *capabilities;
@@ -601,6 +601,23 @@ static NSMutableDictionary *namespaces;
   [extensions autorelease];
 }
 
+- (BOOL)passwordIsSimple {
+    /*
+    Password is pure printable ASCII [ -~] without quote
+    and can thus be sent without continuation.
+    This obviously includes the empty password which
+    should (?) be sent directly.
+    */
+    NSString *s = self->password;
+    int i, len = [s length];
+    for (i = 0; i < len; i++) {
+        unichar c = [s characterAtIndex:i];
+        if (c < ' ' || c == '"' || c > '~' || c == '\\')
+            return NO;
+    }
+    return YES;
+}
+
 - (NSDictionary *)login {
   /*
     On failure returns a dictionary with those keys:
@@ -627,11 +644,12 @@ static NSMutableDictionary *namespaces;
   else
     plength = [self->password length];
 
-  if (plength > 0)
+  if (![self passwordIsSimple])
     s = [NSString stringWithFormat:@"login \"%@\" {%d}",
-		  self->login, plength];
+		  self->login, (int)plength];
   else
-    s = [NSString stringWithFormat:@"login \"%@\" \"\"", self->login];
+    s = [NSString stringWithFormat:@"login \"%@\" \"%@\"",
+          self->login, self->password];
 
   map = [self processCommand: s
                      withTag: YES
@@ -908,6 +926,92 @@ static NSMutableDictionary *namespaces;
   return [self->normer normalizeResponse:[self processCommand:@"unselect"]];
 }
 
+- (NSDictionary *)lstatus:(NSString *)_folder flags:(NSArray *)_flags {
+  NSString *cmd;
+
+  if (_folder == nil)
+    return nil;
+  if ((_flags == nil) || ([_flags count] == 0))
+    return nil;
+  if ((_folder = [self _folder2ImapFolder:_folder]) == nil)
+    return nil;
+
+  cmd     = [NSString stringWithFormat:@"list \"\" \"%@\" return (status (%@))",
+                      SaneFolderName(_folder), [_flags componentsJoinedByString:@" "]];
+  return [self->normer normalizeListStatusResponse:[self processCommand:cmd]];
+}
+
+/*
+ result dict looks like the following  
+{FolderList = {INBOX = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_d8"; }; }; "Other Users/sogo2" = {"/comment" = {"value.priv" = "sogo_c0c_192bd7dc_0"; }; }; Sent = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_da"; }; }; Trash = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_dc"; }; }; abczzll = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_d9"; }; }; "abczzll/mmabcmm" = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_de"; }; }; mf1renamedd = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_dd"; }; }; tfu1 = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_db"; }; }; zuk = {"/comment" = {"value.priv" = "sogo_73c_192bd57b_df"; }; }; }; RawResponse = "{FolderList = ({INBOX = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_d8\"; }; }; }, {Sent = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_da\"; }; }; }, {Trash = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_dc\"; }; }; }, {abczzll = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_d9\"; }; }; }, {\"abczzll/mmabcmm\" = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_de\"; }; }; }, {mf1renamedd = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_dd\"; }; }; }, {tfu1 = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_db\"; }; }; }, {zuk = {\"/comment\" = {\"value.priv\" = \"sogo_73c_192bd57b_df\"; }; }; }, {\"Other Users/sogo2\" = {\"/comment\" = {\"value.priv\" = \"sogo_c0c_192bd7dc_0\"; }; }; }); ResponseResult = {description = Completed; result = ok; tagId = 13; }; }"; expunge = (); result = 1; }
+
+ getannotation:
+
+ result = [client annotation: folderName entryName: @"/comment" attributeName: @"value.priv"];
+ result = [client annotation: folderName entryName: @"/comment" attributeName: @"value"];
+ result = [client annotation: folderName entryName: @"/*" attributeName: @"value"];
+ result = [client annotation: @"" entryName: @"/*" attributeName: @"value"];
+
+*/
+- (NSDictionary *)annotation:(NSString *)_folder entryName:(NSString *)_entry attributeName:(NSString *)_attribute {
+  NSString *cmd;
+  NGHashMap *_map;
+  NSDictionary        *obj;
+  NSMutableDictionary *result, *folderList;
+  NSEnumerator        *enumerator;
+
+  if (_folder == nil)
+    return nil;
+  if (_entry == nil)
+    return nil;
+  if (_attribute == nil)
+    return nil;
+  if ((_folder = [self _folder2ImapFolder:_folder]) == nil)
+    return nil;
+  
+  cmd     = [NSString stringWithFormat:@"getannotation \"%@\" \"%@\" \"%@\"",
+                      SaneFolderName(_folder), _entry, _attribute];
+  
+  result  = [NSMutableDictionary dictionaryWithCapacity:2];
+  _map = [self processCommand:cmd];
+
+  result = [self->normer normalizeResponse:_map];
+
+  enumerator = [_map objectEnumeratorForKey:@"FolderList"];
+  folderList  = [NSMutableDictionary dictionaryWithCapacity:5];
+  while ((obj = [enumerator nextObject]) != nil) {
+      [folderList setObject: [obj objectForKey: [[obj allKeys] objectAtIndex:0]] forKey: [[self _imapFolder2Folder: [[obj allKeys] objectAtIndex:0]] substringFromIndex:1]];
+    }
+
+  [result setObject: folderList forKey: @"FolderList" ];
+
+  return result;
+}
+
+- (NSDictionary *)annotation:(NSString *)_folder entryName:(NSString *)_entry attributeName:(NSString *)_attribute attributeValue:(NSString *)_value {
+  NSString *cmd;
+  NSMutableDictionary *result;
+  
+  if (_folder == nil)
+    return nil;
+  if (_entry == nil)
+    return nil;
+  if (_attribute == nil)
+    return nil;
+  if (_value == nil)
+    return nil;
+  if ((_folder = [self _folder2ImapFolder:_folder]) == nil)
+    return nil;
+  
+  cmd     = [NSString stringWithFormat:@"setannotation \"%@\" \"%@\" (\"%@\" \"%@\")",
+                      SaneFolderName(_folder), _entry, _attribute, _value];
+  
+  result  = [NSMutableDictionary dictionaryWithCapacity:2];
+  result = [self->normer normalizeResponse:[self processCommand:cmd]];
+
+  return result;
+}
+
 - (NSDictionary *)status:(NSString *)_folder flags:(NSArray *)_flags {
   NSString *cmd;
   
@@ -918,7 +1022,7 @@ static NSMutableDictionary *namespaces;
   if ((_folder = [self _folder2ImapFolder:_folder]) == nil)
     return nil;
   
-  cmd     = [NSString stringWithFormat:@"status \"%@\" (%@)",
+  cmd = [NSString stringWithFormat:@"status \"%@\" (%@)",
                       SaneFolderName(_folder), [_flags componentsJoinedByString:@" "]];
   return [self->normer normalizeStatusResponse:[self processCommand:cmd]];
 }
@@ -987,6 +1091,7 @@ static NSMutableDictionary *namespaces;
 - (NSString *)_partsJoinedForFetchCmd:(NSArray *)_parts {
   return [_parts componentsJoinedByString:@" "];
 }
+
 
 - (NSDictionary *)fetchUids:(NSArray *)_uids parts:(NSArray *)_parts {
   /*
@@ -1081,7 +1186,7 @@ static NSMutableDictionary *namespaces;
 
   cmd  = [NSString stringWithFormat:
                      @"UID FETCH %llu:%llu (UID) (CHANGEDSINCE 1)",
-                   _uid, _uid];
+                   (unsigned long long)_uid, (unsigned long long)_uid];
   fetchres = [self processCommand:cmd];
   result   = [self->normer normalizeFetchResponse:fetchres];
   return result;
@@ -1098,7 +1203,7 @@ static NSMutableDictionary *namespaces;
   
   cmd  = [NSString stringWithFormat:
                      @"UID FETCH 1:* (UID) (CHANGEDSINCE %llu VANISHED)",
-                   _modseq];
+                   (unsigned long long)_modseq];
   fetchres = [self processCommand:cmd];
   result   = [[self->normer normalizeFetchResponse:fetchres] retain];
   [pool release];
@@ -1224,7 +1329,7 @@ static NSMutableDictionary *namespaces;
   
   icmd = [NSString stringWithFormat:@"append \"%@\" (%@) {%d}",
                    _folder, [flags componentsJoinedByString:@" "],
-                   [rfc822Data length]];
+                   (int)[rfc822Data length]];
   result = [self processCommand:icmd
                  withTag:YES withNotification:NO];
   

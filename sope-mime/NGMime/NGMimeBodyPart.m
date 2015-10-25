@@ -33,7 +33,14 @@
 
 - (id)initWithHeader:(NGHashMap *)_header {
   if ((self = [super init])) {
-    self->header = [_header retain];
+
+    if (_header)
+      self->header = [NGMutableHashMap hashMapWithHashMap: _header];
+    else
+      self->header = [NGMutableHashMap hashMap];
+
+    [self->header retain];
+
     self->body   = nil;
   }
   return self;
@@ -68,6 +75,11 @@
 
 - (NSString *)headerForKey:(NSString *)_key {
   return [[self->header objectEnumeratorForKey:_key] nextObject];
+}
+
+- (void) setHeader: (id) _header  forKey: (NSString *)_key
+{
+  [self->header setObject: _header  forKey: _key];
 }
 
 - (NSArray *)headersForKey:(NSString *)_key {
@@ -194,10 +206,10 @@
   else if ([b isKindOfClass:[NSString class]] ||
            [b isKindOfClass:[NSData class]]) {
     if ([b length] < 512) {
-      [d appendFormat:@" bodyLen=%i body=%@", [b length], b];
+      [d appendFormat:@" bodyLen=%i body=%@", (int)[b length], b];
     }
     else
-      [d appendFormat:@" body[len=%i]", [b length]];
+      [d appendFormat:@" body[len=%i]", (int)[b length]];
   }
   else
     [d appendFormat:@" body=%@", b];

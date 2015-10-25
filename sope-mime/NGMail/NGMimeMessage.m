@@ -48,7 +48,14 @@ static NGMimeType *defaultDataType = nil;
 }
 - (id)initWithHeader:(NGHashMap *)_header {
   if ((self = [super init])) {
-    self->header = [_header retain];
+
+    if (_header)
+      self->header = [NGMutableHashMap hashMapWithHashMap: _header];
+    else
+      self->header = [NGMutableHashMap hashMap];
+    
+    [self->header retain];
+
   }
   return self;
 }
@@ -203,6 +210,11 @@ static NGMimeType *defaultDataType = nil;
   return ms;
 }
 
+- (void) setHeader: (id) _header  forKey: (NSString *)_key
+{
+  [self->header setObject: _header  forKey: _key];
+}
+
 /* description */
 
 - (NSString *)description {
@@ -218,7 +230,7 @@ static NGMimeType *defaultDataType = nil;
     if ([b length] < 512)
       [d appendFormat:@" body=%@", b];
     else
-      [d appendFormat:@" body[len=%i]", [b length]];
+      [d appendFormat:@" body[len=%i]", (int)[b length]];
   }
   else
     [d appendFormat:@" body=%@", b];
